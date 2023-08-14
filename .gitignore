@@ -1,0 +1,10 @@
+Makefile
+*.dll
+*.o
+*.a
+*.lib
+perfPSX
+.gitattributes
+*.aux
+*.log
+*.pdf

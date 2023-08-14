@@ -5,15 +5,22 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAXBUFF 8192
+#define MAXBUFF 50001
 #define DELIM ";";
 
 pthread_mutex_t mutex;
 const char delim = ';';
 
-int nbiter = 0, nbmain = 0, nbboost = 0;
+int nbiter = 0, nbmain = 0, nblegs = 0;
 
 int quit = 0;
+
+struct WP {
+    char ID[10];
+    char via[10];
+    float latitude;
+    float longitude;
+} RTE[500];
 
 void Decode(char *s);
 
@@ -23,21 +30,58 @@ char bufmain[MAXBUFF];
 
 int init_connect(void);
 
+void decode_leg(const char *leg)
+{
+    char *legcpy = malloc((strlen(leg) + 1) * sizeof(char));
+    char *token, *val;
+    float rad;
+
+    if (legcpy == NULL) {
+        return;
+    }
+
+    strcpy(legcpy, leg);
+
+    token = strtok(legcpy, "'"); // Waypoint
+    strcpy(RTE[nblegs].ID, token);
+
+    token = strtok(NULL, "'"); // Via
+    strcpy(RTE[nblegs].via, token);
+
+   //// token = strtok(NULL, "'"); // Lat and Long
+   // if ((val= memchr(token, '/', strlen(token))))
+     //   RTE[nblegs].longitude = strtol(val, NULL, 10);
+
+   // token = strtok(NULL, "'"); // Waypoint
+   // RTE[nblegs].longitude = strtol(token, NULL, 10);
+
+    nblegs++;
+    free(legcpy);
+}
+
 void decode_RTE(char *s)
 {
 
     char *token;
-/*-------------------------------------------
- * Ignore the first two tokens in the route
- * ----------------------------------------*/
 
     token = strtok(s, "#");
-	token = strtok(NULL, ";");
+    /*-------------------------------------------
+     * Ignore the first two tokens in the route
+     * ----------------------------------------*/
+    token = strtok(NULL, ";");
+    token = strtok(NULL, ";");
 
+    token = strtok(NULL, ";");
     while (token != NULL) {
-        printf("%s\n", token+10);
+        printf("%s\n", token + 10);
+        decode_leg(token+10);
         token = strtok(NULL, ";");
     }
+
+    for (int i = 0; i < nblegs; i++) {
+        printf("ID: %s\tVia: %s\t Lat: %.2f\t Long: %.2f\n", RTE[i].ID, RTE[i].via, RTE[i].latitude, RTE[i].longitude);
+    }
+    printf("\n");
 }
 
 int sendQPSX(const char *s)
@@ -136,7 +180,7 @@ void *ptUmain(void *thread_param)
 }
 void Decode(char *s)
 {
-	decode_RTE(s);
+    decode_RTE(s);
 }
 
 int main(int argc, char **argv)

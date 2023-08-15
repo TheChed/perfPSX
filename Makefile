@@ -2,6 +2,7 @@
 # See LICENSE file for copyright and license details.
 
 CFLAGS   = -std=c2x -pedantic -Wall -Wno-deprecated-declarations -Os
+CFLAGSXML = `xml2-config --cflags --libs`
 CC = clang
 LIBS = -lm
 
@@ -15,6 +16,9 @@ all: perfPSX
 
 ${OBJ}: 
 
+xml: 
+	${CC} ${CFLAGSXML} -o xml xml.c
+
 config.h:
 	cp config.def.h $@
 
@@ -22,4 +26,4 @@ perfPSX: ${OBJ}
 	${CC} -o $@ ${OBJ} ${LIBS}
 
 clean:
-	rm -f perfPSX ${OBJ} *.log
+	rm -f perfPSX ${OBJ} *.log xml

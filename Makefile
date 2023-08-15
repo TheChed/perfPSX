@@ -22,4 +22,4 @@ perfPSX: ${OBJ}
 	${CC} -o $@ ${OBJ} ${LIBS}
 
 clean:
-	rm -f perfPSX ${OBJ}
+	rm -f perfPSX ${OBJ} *.log

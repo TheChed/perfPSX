@@ -10,6 +10,7 @@
 
 #define LBSKG 0.45359237
 #define MAXBUFF 50001
+#define MINDISTANCE 1000
 
 pthread_mutex_t mutex;
 const char delim = ';';
@@ -179,14 +180,14 @@ void log_position(void)
 
     distance = dist(currentPos.latitude, RTE[0].latitude, currentPos.longitude, RTE[0].longitude);
 
-    if (distance < 200.0 && printOK) {
+    if (distance < MINDISTANCE && printOK) {
 
-        printf("%5s|\t%s\t|\t%.1f\t|\t%dZ\n", RTE[0].ID, currentPos.ATA, currentPos.fuel, currentPos.ETA);
-        fprintf(flog,"%5s;%s;%.1f;%dZ\n", RTE[0].ID, currentPos.ATA, currentPos.fuel, currentPos.ETA);
+        printf("%5s|\t%s\t|\t%.1f\t|\t%04dZ\n", RTE[0].ID, currentPos.ATA, currentPos.fuel, currentPos.ETA);
+        fprintf(flog,"%5s,%s,%.1f,%04dZ\n", RTE[0].ID, currentPos.ATA, currentPos.fuel, currentPos.ETA);
         fflush(flog);
         printOK = 0;
     }
-    printOK = (distance >= 200.0);
+    printOK = (distance >=MINDISTANCE);
 }
 
 int umain(const char *Q)
@@ -277,7 +278,7 @@ int main(int argc, char **argv)
         return -1;
     }
     printf(" WPT |\tLapsed\t|\t Fuel \t|\t ETA \n");
-    fprintf(flog,"WPT;Lapsed;Fuel;ETA\n");
+    fprintf(flog,"WPT,Lapsed,Fuel,ETA\n");
     if (pthread_create(&t1, NULL, &ptUmain, NULL) != 0) {
 
         printf("Error creating thread Umain");

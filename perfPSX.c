@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 1
+#define _DEFAULT_SOURCE 1
 #include <arpa/inet.h>
 #include <errno.h>
 #include <pthread.h>
@@ -28,6 +29,7 @@ int quit = 0;
 typedef struct pos {
     char ID[10];
     char raw[500];
+    int printed;
     int ATA;
     int ATAxml;
     double fuel, fuelxml;
@@ -54,21 +56,21 @@ void parsefix(xmlDocPtr doc, xmlNodePtr cur)
     while (cur != NULL) {
         if ((!xmlStrcmp(cur->name, (const xmlChar *)"ident"))) {
             key = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
-            printf("IDENT: %s\t", key);
-            strcpy(RTE[nbxmllegs].ID, (char *)key);
-            xmlFree(key);
-            nbxmllegs++;
+            if (strcmp((char *)key, "TOC") && strcmp((char *)key, "TOD")) {
+                strcpy(RTE[nbxmllegs].ID, (char *)key);
+                RTE[nbxmllegs].printed=0;
+                xmlFree(key);
+                nbxmllegs++;
+            }
         }
         if ((!xmlStrcmp(cur->name, (const xmlChar *)"time_total"))) {
             key = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
-            printf("TIME: %s\t", key);
             RTE[nbxmllegs].ATAxml = strtol((char *)key, NULL, 10);
             xmlFree(key);
         }
         if ((!xmlStrcmp(cur->name, (const xmlChar *)"fuel_plan_onboard"))) {
             key = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
-            printf("FUEL: %s\n", key);
-            RTE[nbxmllegs].fuelxml = strtol((char *)key, NULL, 10);
+            RTE[nbxmllegs].fuelxml = strtof((char *)key,NULL )/1000;
             xmlFree(key);
         }
         cur = cur->next;
@@ -120,7 +122,7 @@ int parseXML(const char *filename)
 
     while (cur != NULL) {
         if (!xmlStrcmp(cur->name, (const xmlChar *)"navlog")) {
-            printf("cur->name: %s\n", cur->name);
+            printf("Parsing %s in %s file\n", cur->name, filename);
             parsenavlog(doc, cur);
         }
         cur = cur->next;
@@ -139,7 +141,6 @@ void insertleg(const char *raw, char *ID, int ETA, int fuel, double latitude, do
         return;
     }
 
-    printf("Processing ID: %s\n",ID);
     for (int i = 0; i < nbxmllegs; ++i) {
         if (!strcmp(RTE[i].ID, ID)) {
             RTE[i].ATA = ETA;
@@ -154,29 +155,43 @@ void insertleg(const char *raw, char *ID, int ETA, int fuel, double latitude, do
 }
 void decode_leg(const char *leg)
 {
-    char *token, *val, *savptr;
+    char *token, *val;
 
     char ID[50];
     double latitude, longitude;
     int ETA, fuel;
 
-    char *legcpy = malloc(1 + strlen(leg) * sizeof(char));
+    char *legcpy = strdup(leg);
 
-    strcpy(legcpy, leg);
-    savptr = legcpy;
-
-    token = strtok_r(legcpy, "'", &savptr); // Waypoint
-    if (strlen(token) == 0) {
+    /*----------------------
+     * Waypoint
+     *---------------------*/
+    token=strsep(&legcpy, "'"); // Waypoint
+    if (token==NULL) {
         return;
     }
+    strncpy(ID, token, 50);
 
-    strncpy(ID, token,50);
+    /*----------------------
+     * via (route)
+     *---------------------*/
+    token=strsep(&legcpy, "'"); 
+    if (token==NULL) {
+    }
 
-    token = strtok_r(NULL, "'", &savptr); // via
-    if(token==NULL) return; 
+    /*----------------------
+     *  3rd field
+     *---------------------*/
+    token=strsep(&legcpy, "'"); 
+    if (token==NULL) {
+    }
 
-    token = strtok_r(NULL, "'", &savptr); // Lat and Long
-    if(token==NULL) return; 
+    /*----------------------
+     * Coordinates of waypoint
+     *---------------------*/
+    token=strsep(&legcpy, "'"); 
+    if (token == NULL)
+        return;
     if ((val = memchr(token, '/', strlen(token)))) {
         longitude = strtof(val + 1, NULL);
         latitude = strtof(token, NULL);
@@ -185,17 +200,22 @@ void decode_leg(const char *leg)
         latitude = 0;
     }
 
-    if(token==NULL) return; 
-    token = strtok_r(NULL, "'", &savptr); // ETA
+    /*----------------------
+     * ETA
+     *---------------------*/
+    token=strsep(&legcpy, "'"); 
     ETA = strtol(token, NULL, 10);
-    if(token==NULL) return; 
 
-    token = strtok_r(NULL, "'", &savptr); // Fuel
-    if(token==NULL) return; 
+    /*----------------------
+     * Fuel
+     *---------------------*/
+    token=strsep(&legcpy, "'"); 
+    if (token == NULL)
+        return;
     fuel = strtol(token, NULL, 10);
 
+
     insertleg(leg, ID, ETA, fuel, latitude, longitude);
-    free(legcpy);
 }
 
 void decode_fuel(char *s)
@@ -288,26 +308,33 @@ double dist(double lat1, double lat2, double long1, double long2)
 void log_position(void)
 {
 
-    double distance;
-    static int printOK = 0;
-    char ATA[6];
+    double distance, fueldiff;
+    char ATA[6], ATAxml[6];
+    int atadiff;
 
-    distance = dist(currentPos.latitude, RTE[0].latitude, currentPos.longitude, RTE[0].longitude);
 
-    if (distance < MINDISTANCE && printOK) {
+    for (int i = 0; i < nbxmllegs-1; ++i) {
 
-        formattime(currentPos.ATA, ATA);
-        printf("%5s|\t%s\t|\t%.1f\t|\t%04dZ\n", RTE[0].ID, ATA, currentPos.fuel, currentPos.ETA);
-         fprintf(flog, "%5s,%s,%.1f,%04dZ\n", RTE[0].ID, ATA, currentPos.fuel, currentPos.ETA);
-        fflush(flog);
-        printOK = 0;
+        distance = dist(currentPos.latitude, RTE[i].latitude, currentPos.longitude, RTE[i].longitude);
+
+        //printf("Raw: %s Printed: %d\tdistance to %d-%s: %.2f  %.2f  %.2f  %.2f  %.2f \n",RTE[i].raw, RTE[i].printed,i, RTE[i].ID, distance / 1000,currentPos.latitude, RTE[i].latitude, currentPos.longitude, RTE[i].longitude);
+        if (distance < MINDISTANCE && !RTE[i].printed) {
+            atadiff=(currentPos.ATA-RTE[i].ATAxml)/60;
+            fueldiff=currentPos.fuel-RTE[i].fuelxml;
+            formattime(currentPos.ATA, ATA);
+            formattime(RTE[i].ATAxml,ATAxml);
+            printf("%5s|\t%s\t%s\t%+d\t|\t%.1f\t%.1f\t%+.1f|\t%04dZ\n", RTE[i].ID, ATA,ATAxml,atadiff, currentPos.fuel, RTE[i].fuelxml,fueldiff,currentPos.ETA);
+            fprintf(flog, "%5s,%s,%.1f,%04dZ\n", RTE[i].ID, ATA, currentPos.fuel, currentPos.ETA);
+            fflush(flog);
+            RTE[i].printed=1;
+        }
     }
-    printOK = (distance >= MINDISTANCE);
 }
 
 int umain(const char *Q)
 {
     static int active = -1;
+    static int routeBuilt = 0;
     char rte[5];
 
     strncpy(rte, "XXXXX", 5);
@@ -349,6 +376,7 @@ int umain(const char *Q)
         if (strstr(line_start, rte)) {
             nbroutelegs = 0;
             decode_RTE(line_start);
+            routeBuilt=1;
         }
         if (strstr(line_start, "Qs438")) {
             decode_fuel(line_start);
@@ -362,7 +390,9 @@ int umain(const char *Q)
 
         // if we are close to a waypoint
         // in a route then log the position
-        log_position();
+        if(routeBuilt){
+            log_position();
+        }
 
         line_start = line_end + 1;
     }
@@ -395,7 +425,7 @@ int main(int argc, char **argv)
     parseXML(argv[1]);
     printf("Created %d legs\n", nbxmllegs);
 
-    printf(" WPT |\tLapsed\t|\t Fuel \t|\t ETA \n");
+    printf(" WPT |\tATA\tATA(est.)|\t Fuel\tFuel(est)\t|\t ETA \n");
     fprintf(flog, "WPT,Lapsed,Fuel,ETA\n");
     if (pthread_create(&t1, NULL, &ptUmain, NULL) != 0) {
 

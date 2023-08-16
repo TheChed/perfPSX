@@ -1,53 +1,83 @@
+#include "libxml/tree.h"
+#include "libxml/xmlstring.h"
 #include <stdio.h>
 #include <libxml/parser.h>
 
 /*gcc `xml2-config --cflags --libs` test.c*/
 
-int is_leaf(xmlNode *node)
-{
-    xmlNode *child = node->children;
-    while (child) {
-        if (child->type == XML_ELEMENT_NODE)
-            return 0;
+void parsefix(xmlDocPtr doc, xmlNodePtr cur){
+    xmlChar *key;
+    cur = cur->xmlChildrenNode;
 
-        child = child->next;
+    while (cur != NULL) {
+        if ((!xmlStrcmp(cur->name, (const xmlChar *)"ident"))) {
+            key = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
+            printf("IDENT: %s\t", key);
+            xmlFree(key);
+        }
+        if ((!xmlStrcmp(cur->name, (const xmlChar *)"time_total"))) {
+            key = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
+            printf("TIME: %s\t", key);
+            xmlFree(key);
+        }
+        if ((!xmlStrcmp(cur->name, (const xmlChar *)"fuel_plan_onboard"))) {
+            key = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
+            printf("FUEL: %s\n", key);
+            xmlFree(key);
+        }
+        cur = cur->next;
     }
-
-    return 1;
 }
 
-void print_xml(xmlNode *node, int indent_len)
+void parsenavlog(xmlDocPtr doc, xmlNodePtr cur)
 {
-    while (node) {
-        if (node->type == XML_ELEMENT_NODE) {
-            printf("%*c%s:%s\n", indent_len * 2, '-', node->name,
-            is_leaf(node) ? xmlNodeGetContent(node) : xmlGetProp(node, "id"));
+    cur = cur->xmlChildrenNode;
+
+    while (cur != NULL) {
+        if ((!xmlStrcmp(cur->name, (const xmlChar *)"fix"))) {
+            parsefix(doc, cur);
         }
-        print_xml(node->children, indent_len + 1);
-        node = node->next;
+        cur = cur->next;
     }
 }
 
 int main()
 {
-    xmlDoc *doc = NULL;
-    xmlNode *root_element = NULL;
-    xmlNode *cur;
+    xmlDocPtr doc;
+    xmlNodePtr cur;
 
-
-    doc = xmlReadFile("VHHH.xml", NULL, 0);
+    doc = xmlParseFile("VHHH.xml");
 
     if (doc == NULL) {
-        printf("Could not parse the XML file");
+        fprintf(stderr, "Could not open xml file\n");
+        return -1;
     }
 
-    root_element = xmlDocGetRootElement(doc);
-    
+    cur = xmlDocGetRootElement(doc);
 
-    cur=root_element;
+    if (cur == NULL) {
+        fprintf(stderr, "Empty Document\n");
+        xmlFreeDoc(doc);
+        return -1;
+    }
 
-    print_xml(root_element, 1);
+    if (xmlStrcmp(cur->name, (const xmlChar *)"OFP")) {
+        fprintf(stderr, "Document of wrong type, root node !=navlog\n");
+        xmlFreeDoc(doc);
+        return -1;
+    } else {
+        printf("Document is correct. Ready to be parsed\n");
+    }
 
+    cur = cur->xmlChildrenNode;
+
+    while (cur != NULL) {
+        if (!xmlStrcmp(cur->name, (const xmlChar *)"navlog")) {
+            printf("cur->name: %s\n", cur->name);
+            parsenavlog(doc, cur);
+        }
+        cur = cur->next;
+    }
     xmlFreeDoc(doc);
 
     xmlCleanupParser();

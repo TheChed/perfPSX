@@ -10964,8 +10964,8 @@ PROB30 TEMPO 1503/1510 8000 -RA BKN014</taf>
       <fir_crossing/>
     </fix>
     <fix>
-      <ident>BRASO</ident>
-      <name>BRASO</name>
+      <ident>BADUR</ident>
+      <name>BADUR</name>
       <type>wpt</type>
       <frequency/>
       <pos_lat>51.685158</pos_lat>
@@ -12509,8 +12509,8 @@ SABER       N5142.2 0006 ...  21   263         M034  P08
 SABER      E00057.0 1237 ...  25    57  433          369  ....  ....
 
 LOGAN2H                      158   262  .69 214/046  M09  15.0 114.0
-BRASO       N5141.1 0002 ...  24   263         M032  P08
-BRASO      E00041.0 1239 ...  10    47  408          368  ....  ....
+BADUR       N5141.1 0002 ...  24   263         M032  P08
+BADUR      E00041.0 1239 ...  10    47  408          368  ....  ....
 
 LOGAN2H                      134   262  .66 214/042  M05  14.9 114.1
 WESUL       N5140.3 0001 ...  23   263         M029  P07

@@ -1,22 +1,22 @@
 # dwm - dynamic window manager
 # See LICENSE file for copyright and license details.
 
-CFLAGS   = -std=c2x -pedantic -Wall -Wno-deprecated-declarations -Os
+CFLAGS   = `xml2-config --cflags` -std=c2x -pedantic -Wall -Wno-deprecated-declarations -Os
 CFLAGSXML = `xml2-config --cflags --libs`
 CC = clang
-LIBS = -lm
+LIBS = -lm `xml2-config --libs`
 
 SRC = perfPSX.c
 OBJ = ${SRC:.c=.o}
 
-all: perfPSX
+all: perfPSX xml
 
 .c.o:
 	${CC} -c ${CFLAGS} $<
 
 ${OBJ}: 
 
-xml: 
+xml: xml.c
 	${CC} ${CFLAGSXML} -o xml xml.c
 
 config.h:

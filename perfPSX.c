@@ -35,9 +35,7 @@ typedef struct pos {
     double fuel, fuelxml;
     int ETA;
     double latitude;
-    double latitudexml;
     double longitude;
-    double longitudexml;
 } pos;
 
 pos currentPos;
@@ -98,7 +96,7 @@ int parseXML(const char *filename)
 
     if (doc == NULL) {
         fprintf(stderr, "Could not open xml file\n");
-        return -1;
+        exit(EXIT_FAILURE);
     }
 
     cur = xmlDocGetRootElement(doc);
@@ -106,12 +104,14 @@ int parseXML(const char *filename)
     if (cur == NULL) {
         fprintf(stderr, "Empty Document\n");
         xmlFreeDoc(doc);
+        exit(EXIT_FAILURE);
         return -1;
     }
 
     if (xmlStrcmp(cur->name, (const xmlChar *)"OFP")) {
         fprintf(stderr, "Document of wrong type, root node !=navlog\n");
         xmlFreeDoc(doc);
+        exit(EXIT_FAILURE);
         return -1;
     }
 
@@ -138,7 +138,7 @@ void insertleg(const char *raw, char *ID, int ETA, int fuel, double latitude, do
 {
     if (!nbxmllegs) {
         printf("No XML route provided\n");
-        return;
+        exit(EXIT_FAILURE);
     }
 
     for (int i = 0; i < nbxmllegs; ++i) {
@@ -324,7 +324,7 @@ void log_position(void)
             formattime(currentPos.ATA, ATA);
             formattime(RTE[i].ATAxml,ATAxml);
             printf("%5s|\t%s\t%s\t%+d\t|\t%.1f\t%.1f\t%+.1f|\t%04dZ\n", RTE[i].ID, ATA,ATAxml,atadiff, currentPos.fuel, RTE[i].fuelxml,fueldiff,currentPos.ETA);
-            fprintf(flog, "%5s,%s,%.1f,%04dZ\n", RTE[i].ID, ATA, currentPos.fuel, currentPos.ETA);
+            fprintf(flog,"%5s,%s,%s,%+d,,,%.1f,%.1f,%+.1f,,%04dZ\n", RTE[i].ID, ATA,ATAxml,atadiff, currentPos.fuel, RTE[i].fuelxml,fueldiff,currentPos.ETA);
             fflush(flog);
             RTE[i].printed=1;
         }
@@ -426,7 +426,7 @@ int main(int argc, char **argv)
     printf("Created %d legs\n", nbxmllegs);
 
     printf(" WPT |\tATA\tATA(est.)|\t Fuel\tFuel(est)\t|\t ETA \n");
-    fprintf(flog, "WPT,Lapsed,Fuel,ETA\n");
+    fprintf(flog, "WPT,Lapsed,Lapsed (est), Fuel,Fuel (est),ETA\n");
     if (pthread_create(&t1, NULL, &ptUmain, NULL) != 0) {
 
         printf("Error creating thread Umain");

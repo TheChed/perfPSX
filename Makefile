@@ -9,15 +9,12 @@ LIBS = -lm `xml2-config --libs`
 SRC = perfPSX.c
 OBJ = ${SRC:.c=.o}
 
-all: perfPSX xml
+all: perfPSX
 
 .c.o:
 	${CC} -c ${CFLAGS} $<
 
 ${OBJ}: 
-
-xml: xml.c
-	${CC} ${CFLAGSXML} -o xml xml.c
 
 config.h:
 	cp config.def.h $@
@@ -26,4 +23,4 @@ perfPSX: ${OBJ}
 	${CC} -o $@ ${OBJ} ${LIBS}
 
 clean:
-	rm -f perfPSX ${OBJ} *.log xml
+	rm -f perfPSX ${OBJ} *.log

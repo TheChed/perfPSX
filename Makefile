@@ -16,9 +16,6 @@ all: perfPSX
 
 ${OBJ}: 
 
-xml: xml.c
-	${CC} ${CFLAGSXML} -o xml xml.c
-
 config.h:
 	cp config.def.h $@
 

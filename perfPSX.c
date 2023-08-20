@@ -132,9 +132,8 @@ int parseXML(const char *filename)
     xmlCleanupParser();
     return 0;
 }
-int init_connect(void);
 
-void insertleg(const char *raw, char *ID, int ETA, int fuel, double latitude, double longitude)
+void insertleg(const char *raw, const char *ID, int ETA, int fuel, double latitude, double longitude)
 {
     if (!nbxmllegs) {
         printf("No XML route provided\n");
@@ -157,7 +156,8 @@ void decode_leg(const char *leg)
 {
     char *token, *val;
 
-    char ID[50];
+    //char ID[50];
+    char *ID;
     double latitude, longitude;
     int ETA, fuel;
 
@@ -170,6 +170,7 @@ void decode_leg(const char *leg)
     if (token == NULL) {
         return;
     }
+    ID=strdup(token);
     strncpy(ID, token, 50);
 
     /*----------------------
@@ -215,6 +216,7 @@ void decode_leg(const char *leg)
     fuel = strtol(token, NULL, 10);
 
     insertleg(leg, ID, ETA, fuel, latitude, longitude);
+    free(ID);
 }
 
 void decode_fuel(char *s)

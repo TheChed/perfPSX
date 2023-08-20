@@ -16,7 +16,7 @@
 
 #define LBSKG 0.45359237
 #define MAXBUFF 50001
-#define MINDISTANCE 1000
+#define MINDISTANCE 500
 
 pthread_mutex_t mutex;
 const char delim = ';';
@@ -56,9 +56,8 @@ void parsefix(xmlDocPtr doc, xmlNodePtr cur)
             key = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
             if (strcmp((char *)key, "TOC") && strcmp((char *)key, "TOD")) {
                 strcpy(RTE[nbxmllegs].ID, (char *)key);
-                RTE[nbxmllegs].printed=0;
+                RTE[nbxmllegs].printed = 0;
                 xmlFree(key);
-                nbxmllegs++;
             }
         }
         if ((!xmlStrcmp(cur->name, (const xmlChar *)"time_total"))) {
@@ -68,8 +67,9 @@ void parsefix(xmlDocPtr doc, xmlNodePtr cur)
         }
         if ((!xmlStrcmp(cur->name, (const xmlChar *)"fuel_plan_onboard"))) {
             key = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
-            RTE[nbxmllegs].fuelxml = strtof((char *)key,NULL )/1000;
+            RTE[nbxmllegs].fuelxml = strtof((char *)key, NULL) / 1000;
             xmlFree(key);
+            nbxmllegs++;
         }
         cur = cur->next;
     }
@@ -166,8 +166,8 @@ void decode_leg(const char *leg)
     /*----------------------
      * Waypoint
      *---------------------*/
-    token=strsep(&legcpy, "'"); // Waypoint
-    if (token==NULL) {
+    token = strsep(&legcpy, "'"); // Waypoint
+    if (token == NULL) {
         return;
     }
     strncpy(ID, token, 50);
@@ -175,21 +175,21 @@ void decode_leg(const char *leg)
     /*----------------------
      * via (route)
      *---------------------*/
-    token=strsep(&legcpy, "'"); 
-    if (token==NULL) {
+    token = strsep(&legcpy, "'");
+    if (token == NULL) {
     }
 
     /*----------------------
      *  3rd field
      *---------------------*/
-    token=strsep(&legcpy, "'"); 
-    if (token==NULL) {
+    token = strsep(&legcpy, "'");
+    if (token == NULL) {
     }
 
     /*----------------------
      * Coordinates of waypoint
      *---------------------*/
-    token=strsep(&legcpy, "'"); 
+    token = strsep(&legcpy, "'");
     if (token == NULL)
         return;
     if ((val = memchr(token, '/', strlen(token)))) {
@@ -203,17 +203,16 @@ void decode_leg(const char *leg)
     /*----------------------
      * ETA
      *---------------------*/
-    token=strsep(&legcpy, "'"); 
+    token = strsep(&legcpy, "'");
     ETA = strtol(token, NULL, 10);
 
     /*----------------------
      * Fuel
      *---------------------*/
-    token=strsep(&legcpy, "'"); 
+    token = strsep(&legcpy, "'");
     if (token == NULL)
         return;
     fuel = strtol(token, NULL, 10);
-
 
     insertleg(leg, ID, ETA, fuel, latitude, longitude);
 }
@@ -312,21 +311,20 @@ void log_position(void)
     char ATA[6], ATAxml[6];
     int atadiff;
 
-
-    for (int i = 0; i < nbxmllegs-1; ++i) {
+    for (int i = 0; i < nbxmllegs - 1; ++i) {
 
         distance = dist(currentPos.latitude, RTE[i].latitude, currentPos.longitude, RTE[i].longitude);
 
-        //printf("Raw: %s Printed: %d\tdistance to %d-%s: %.2f  %.2f  %.2f  %.2f  %.2f \n",RTE[i].raw, RTE[i].printed,i, RTE[i].ID, distance / 1000,currentPos.latitude, RTE[i].latitude, currentPos.longitude, RTE[i].longitude);
+        // printf("Raw: %s Printed: %d\tdistance to %d-%s: %.2f  %.2f  %.2f  %.2f  %.2f \n",RTE[i].raw, RTE[i].printed,i, RTE[i].ID, distance / 1000,currentPos.latitude, RTE[i].latitude, currentPos.longitude, RTE[i].longitude);
         if (distance < MINDISTANCE && !RTE[i].printed) {
-            atadiff=(currentPos.ATA-RTE[i].ATAxml)/60;
-            fueldiff=currentPos.fuel-RTE[i].fuelxml;
+            atadiff = (currentPos.ATA - RTE[i].ATAxml) / 60;
+            fueldiff = currentPos.fuel - RTE[i].fuelxml;
             formattime(currentPos.ATA, ATA);
-            formattime(RTE[i].ATAxml,ATAxml);
-            printf("%5s|\t%s\t%s\t%+d\t|\t%.1f\t%.1f\t%+.1f|\t%04dZ\n", RTE[i].ID, ATA,ATAxml,atadiff, currentPos.fuel, RTE[i].fuelxml,fueldiff,currentPos.ETA);
-            fprintf(flog,"%5s,%s,%s,%+d,,,%.1f,%.1f,%+.1f,,%04dZ\n", RTE[i].ID, ATA,ATAxml,atadiff, currentPos.fuel, RTE[i].fuelxml,fueldiff,currentPos.ETA);
+            formattime(RTE[i].ATAxml, ATAxml);
+            printf("%5s|\t%s\t%s\t%+d\t|\t%.1f\t%.1f\t%+.1f|\t%04dZ\n", RTE[i].ID, ATA, ATAxml, atadiff, currentPos.fuel, RTE[i].fuelxml, fueldiff, currentPos.ETA);
+            fprintf(flog, "%5s,%s,%s,%+d,,,%.1f,%.1f,%+.1f,,%04dZ\n", RTE[i].ID, ATA, ATAxml, atadiff, currentPos.fuel, RTE[i].fuelxml, fueldiff, currentPos.ETA);
             fflush(flog);
-            RTE[i].printed=1;
+            RTE[i].printed = 1;
         }
     }
 }
@@ -376,7 +374,7 @@ int umain(const char *Q)
         if (strstr(line_start, rte)) {
             nbroutelegs = 0;
             decode_RTE(line_start);
-            routeBuilt=1;
+            routeBuilt = 1;
         }
         if (strstr(line_start, "Qs438")) {
             decode_fuel(line_start);
@@ -390,7 +388,7 @@ int umain(const char *Q)
 
         // if we are close to a waypoint
         // in a route then log the position
-        if(routeBuilt){
+        if (routeBuilt) {
             log_position();
         }
 

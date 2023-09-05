@@ -6,7 +6,7 @@ CFLAGSXML = `xml2-config --cflags --libs`
 CC = clang
 LIBS = -lm `xml2-config --libs`
 
-SRC = PSXprofile.c
+SRC = PSXprofile.c perfPSX.c
 OBJ = ${SRC:.c=.o}
 
 all: PSXprofile
@@ -19,10 +19,10 @@ ${OBJ}:
 config.h:
 	cp config.def.h $@
 
-PSXprofile: ${OBJ}
-	${CC} -o $@ ${OBJ} ${LIBS}
-perfPSX: ${OBJ}
-	${CC} -o $@ ${OBJ} ${LIBS}
+PSXprofile: PSXprofile.o
+	${CC} -o $@ PSXprofile.o ${LIBS}
+perfPSX: perfPSX.o
+	${CC} -o $@ perfPSX.o ${LIBS}
 
 clean:
 	rm -f perfPSX ${OBJ} *.log

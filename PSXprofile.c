@@ -17,7 +17,7 @@
 
 #define PERIOD 60 // nb seconds for fuel flow
 #define LBSKG 0.45359237
-#define MAXBUFF 50001
+#define MAXBUFF 65536
 #define MINDISTANCE 500
 
 pthread_mutex_t mutex;
@@ -29,11 +29,12 @@ struct timespec endflowtime;
 FILE *flog;
 int nbreport = 0, nbroutelegs = 0, nbxmllegs = 0;
 long zfw;
+double altitude;
 int quit = 0;
 
 typedef struct pos {
     char ID[10];
-    char raw[500];
+    char raw[1000];
     int printed;
     int ATA;
     int ATAxml;
@@ -45,7 +46,7 @@ typedef struct pos {
 
 pos currentPos;
 
-pos RTE[500];
+pos RTE[1000];
 
 int socketID;
 size_t bufmain_used = 0;
@@ -54,17 +55,16 @@ char bufmain[MAXBUFF];
 void fuelflow(double initfuel, double fuel);
 long lapsed(struct timespec T1, struct timespec T2);
 
-long lapsed(struct timespec T1, struct timespec T2){
+long lapsed(struct timespec T1, struct timespec T2)
+{
 
-    long nbmillisec1, nbmillisec2 ;
+    long nbmillisec1, nbmillisec2;
 
-    nbmillisec1=(T1.tv_sec*1000000000+T1.tv_nsec)/1000000.0;
-    nbmillisec2=(T2.tv_sec*1000000000+T2.tv_nsec)/1000000.0;
+    nbmillisec1 = (T1.tv_sec * 1000000000 + T1.tv_nsec) / 1000000.0;
+    nbmillisec2 = (T2.tv_sec * 1000000000 + T2.tv_nsec) / 1000000.0;
 
-    return nbmillisec2-nbmillisec1;
-
+    return nbmillisec2 - nbmillisec1;
 }
-
 
 void parsefix(xmlDocPtr doc, xmlNodePtr cur)
 {
@@ -159,18 +159,37 @@ void insertleg(const char *raw, const char *ID, int ETA, int fuel, double latitu
         printf("No XML route provided\n");
         exit(EXIT_FAILURE);
     }
-
     for (int i = 0; i < nbxmllegs; ++i) {
         if (!strcmp(RTE[i].ID, ID)) {
             RTE[i].ATA = ETA;
-            strncpy(RTE[i].raw, raw, 500);
+            //   strncpy(RTE[i].raw, raw, strlen(raw));
             RTE[i].fuel = fuel;
             RTE[i].longitude = longitude;
             RTE[i].latitude = latitude;
         }
     }
-
     return;
+}
+void decode_alt(const char *leg)
+{
+    char *token;
+    char *s, *orig;
+
+    s = strdup(leg);
+    orig=s;
+    
+    // char ID[50];
+    /* ------------
+     * Altitude = 4th token
+     * ---------------------*/
+
+    token = strsep(&s, ";");
+    token = strsep(&s, ";");
+    token = strsep(&s, ";");
+    token = strsep(&s, ";");
+
+    altitude = strtof(token, NULL)/1000.0;
+    free(orig);
 }
 void decode_leg(const char *leg)
 {
@@ -178,10 +197,12 @@ void decode_leg(const char *leg)
 
     // char ID[50];
     char *ID;
+    char *legorig;
     double latitude, longitude;
     int ETA, fuel;
 
     char *legcpy = strdup(leg);
+    legorig = legcpy;
 
     /*----------------------
      * Waypoint
@@ -191,7 +212,7 @@ void decode_leg(const char *leg)
         return;
     }
     ID = strdup(token);
-    strncpy(ID, token, 50);
+    // strncpy(ID, token, 50);
 
     /*----------------------
      * via (route)
@@ -237,6 +258,7 @@ void decode_leg(const char *leg)
 
     insertleg(leg, ID, ETA, fuel, latitude, longitude);
     free(ID);
+    free(legorig);
 }
 
 void decode_fuel(char *s)
@@ -260,12 +282,12 @@ void decode_fuel(char *s)
         startfuel = fuelQTY;
         startflowcalc = 0;
     }
-        clock_gettime(CLOCK_MONOTONIC, &endflowtime);
-    fuelflow(startfuel,fuelQTY);
+    clock_gettime(CLOCK_MONOTONIC, &endflowtime);
+    fuelflow(startfuel, fuelQTY);
 }
 void decode_zfw(char *s)
 {
-zfw = strtol(strtok(s+6, ";"), NULL,10)*LBSKG;
+    zfw = strtol(strtok(s + 6, ";"), NULL, 10) * LBSKG;
 }
 void decode_pos(char *s)
 {
@@ -346,8 +368,8 @@ double dist(double lat1, double lat2, double long1, double long2)
 void fuelflow(double initfuel, double fuel)
 {
     if ((endflowtime.tv_sec - startflowtime.tv_sec) > PERIOD) {
-        printf("Gross: %.2f\tFuel: %.2f\tZFW: %ld\tFuel flow: %.4f\n",fuel+zfw, fuel, zfw,
-               3600 * (initfuel - fuel) / (lapsed(startflowtime,endflowtime)/1000.0));
+        printf("Alt: %.1f\tGross: %.2f\tFuel: %.2f\tZFW: %ld\tFuel flow: %.4f\n",altitude, fuel + zfw, fuel, zfw,
+               3600 * (initfuel - fuel) / (lapsed(startflowtime, endflowtime) / 1000.0));
         startflowcalc = 1;
     }
     return;
@@ -364,7 +386,6 @@ void log_position(void)
 
         distance = dist(currentPos.latitude, RTE[i].latitude, currentPos.longitude, RTE[i].longitude);
 
-        // printf("Raw: %s Printed: %d\tdistance to %d-%s: %.2f  %.2f  %.2f  %.2f  %.2f \n",RTE[i].raw, RTE[i].printed,i, RTE[i].ID, distance / 1000,currentPos.latitude, RTE[i].latitude, currentPos.longitude, RTE[i].longitude);
         if (distance < MINDISTANCE && !RTE[i].printed) {
             atadiff = (currentPos.ATA - RTE[i].ATAxml) / 60;
             fueldiff = currentPos.fuel - RTE[i].fuelxml;
@@ -422,8 +443,11 @@ int umain(const char *Q)
 
         if (strstr(line_start, rte)) {
             nbroutelegs = 0;
-            //decode_RTE(line_start);
+            decode_RTE(line_start);
             routeBuilt = 1;
+        }
+        if (strstr(line_start, "Qs121")) {
+            decode_alt(line_start);
         }
         if (strstr(line_start, "Qs438")) {
             decode_fuel(line_start);
@@ -472,7 +496,7 @@ int main(int argc, char **argv)
         printf("Cannot create log file. Exiting\n");
         return -1;
     }
-    //    parseXML(argv[1]);
+    parseXML(argv[1]);
     printf("Created %d legs\n", nbxmllegs);
 
     if (pthread_create(&t1, NULL, &ptUmain, NULL) != 0) {

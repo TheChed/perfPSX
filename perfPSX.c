@@ -16,7 +16,7 @@
 
 #define LBSKG 0.45359237
 #define MAXBUFF 50001
-#define MINDISTANCE 500
+#define MINDISTANCE 1000
 
 pthread_mutex_t mutex;
 const char delim = ';';
@@ -171,7 +171,6 @@ void decode_leg(const char *leg)
         return;
     }
     ID=strdup(token);
-    strncpy(ID, token, 50);
 
     /*----------------------
      * via (route)
@@ -323,7 +322,7 @@ void log_position(void)
             fueldiff = currentPos.fuel - RTE[i].fuelxml;
             formattime(currentPos.ATA, ATA);
             formattime(RTE[i].ATAxml, ATAxml);
-            printf("%5s|\t%s\t%s\t%+d\t|\t%.1f\t%.1f\t%+.1f|\t%04dZ\n", RTE[i].ID, ATA, ATAxml, atadiff, currentPos.fuel, RTE[i].fuelxml, fueldiff, currentPos.ETA);
+            printf("%5s\t\t|%s\t%s\t%+d\t|\t%.1f\t%.1f\t%+.1f|\t%04dZ\n", RTE[i].ID, ATA, ATAxml, atadiff, currentPos.fuel, RTE[i].fuelxml, fueldiff, currentPos.ETA);
             fprintf(flog, "%5s,%s,%s,%+d,,,%.1f,%.1f,%+.1f,,%04dZ\n", RTE[i].ID, ATA, ATAxml, atadiff, currentPos.fuel, RTE[i].fuelxml, fueldiff, currentPos.ETA);
             fflush(flog);
             RTE[i].printed = 1;
@@ -425,7 +424,7 @@ int main(int argc, char **argv)
     parseXML(argv[1]);
     printf("Created %d legs\n", nbxmllegs);
 
-    printf(" WPT |\tATA\tATA(est.)|\t Fuel\tFuel(est)\t|\t ETA \n");
+    printf(" WPT\t\t|\tATA\tATA(est.)|\t Fuel\tFuel(est)\t|\t ETA \n");
     fprintf(flog, "WPT,Lapsed,Lapsed (est), Fuel,Fuel (est),ETA\n");
     if (pthread_create(&t1, NULL, &ptUmain, NULL) != 0) {
 
